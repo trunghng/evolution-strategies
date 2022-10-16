@@ -38,13 +38,17 @@ class CMAES(EvolutionStrategy):
     '''
     CMA Evolution Strategy
     '''
+
+    DEFAULT_MAXFEVALS = lambda popsize, n: 100 * popsize \
+            + 150 * (n + 3)**2 * popsize**0.5
     DEFAULT_POPSIZE = lambda n: 4 + int(3 * np.log(n))
-    DEFAULT_PARENT_NUM = lambda lambda_: lambda_ // 2
+    DEFAULT_PARENT_NUM = lambda popsize: popsize // 2
 
     def __init__(self, xstart: List[float],
                 sigma: float,
                 popsize: int=None,
-                mu: int=None) -> None:
+                mu: int=None,
+                max_fevals: int=None) -> None:
         '''
         Parameters
         ----------
@@ -58,13 +62,14 @@ class CMAES(EvolutionStrategy):
         n = len(xstart)
         self.n = n
         self.sigma = sigma
-        self.lambda_ = popsize if popsize else DEFAULT_POPSIZE(n)
-        self.mu = mu if mu else DEFAULT_PARENT_NUM(self.lambda_)
-        self.chi_n = np.sqrt(n) * (1 - 1. / (4 * n) + 1. / (21 * n**2))
+        self.lambda_ = popsize if popsize else CMAES.DEFAULT_POPSIZE(n)
+        self.mu = mu if mu else CMAES.DEFAULT_PARENT_NUM(self.lambda_)
+        self.max_fevals = max_fevals if max_fevals \
+                else CMAES.DEFAULT_MAXFEVALS(self.lambda_, n)
 
         ## Set recombination weights
         _weights = np.array([np.log((self.lambda_ + 1) / 2) - np.log(i + 1) 
-                for i in range(self.lambda_)])
+                if i < self.mu else 0 for i in range(self.lambda_)])
         self.weights = _weights / np.sum(_weights[:self.mu])
         self.weights_pos = self.weights[:self.mu]
         self.weights_neg = self.weights[self.mu:]
@@ -79,6 +84,7 @@ class CMAES(EvolutionStrategy):
         self.csigma = (self.mueff + 2) / (n + self.mueff + 5)
         self.dsigma = 1 + 2 * max(0, np.sqrt((self.mueff - 1) 
                 / (n + 1)) - 1) + self.csigma
+        # self.dsigma = 2 * self.mueff / self.lambda_ + 0.3 + self.csigma
         
 
         # Initialization
@@ -99,26 +105,23 @@ class CMAES(EvolutionStrategy):
         Y = Q.Lambda.Z ~ N(0, C)
         X = m + sigma * Y ~ m + sigma * N(0, C)
         '''
-        self.condition_number = matrix.condition_number(self.C)
-        self.Q, self.Lambda = matrix.diagonalize(self.C)
-        Z = np.random.randn(self.n, self.lambda_)
         self._diagonalize_C()
-        Y = LA.multi_dot(self.Q, Lambda, self.Z)
-        X = self.xmean + self.sigma * Y
+        Z = np.random.randn(self.n, self.lambda_)
+        Y = LA.multi_dot([self.Q, self.Lambda**0.5, Z])
+        X = self.xmean.reshape(self.n, 1) + self.sigma * Y
         return X
 
 
-    def tell(self, X: np.ndarray, fitness_vals: np.ndarray):
+    def tell(self, X: np.ndarray, fitness_list: np.ndarray):
         self.count_eval += self.lambda_
 
         # Selection & Recombination
-        ordered_indices = np.argsort(fitness_vals)
-        elite_indices = ordered_indices[:self.mu]
-        non_elite_indices = ordered_indices[self.mu:]
-        elites = X[:, elite_indices]
-        non_elites = X[:]
+        ordered_indices = np.argsort(fitness_list)
+        self.fitness_list = np.sort(fitness_list)
+        self.X = X[:,ordered_indices]
         xmean_old = self.xmean.copy()
-        self.xmean = np.sum(self.weights_pos * elites, axis=1)
+        Y = (self.X - xmean_old.reshape(self.n, 1)) / self.sigma
+        self.xmean = np.sum(self.weights_pos * self.X[:,:self.mu], axis=1)
 
         # Update evolution paths: pc, psigma
         step = self.xmean - xmean_old
@@ -137,28 +140,41 @@ class CMAES(EvolutionStrategy):
         pc_nc = np.sqrt(self.cc * (2 - self.cc) * self.mueff) / self.psigma
         self.pc = (1 - self.cc) * self.pc + hsigma * pc_nc * step
 
-        # Step-size adaption
-        self.sigma *= np.exp(min(1, self.csigma / self.dsigma * (psigma_len**2 / self.n - 1) / 2))
-
         # Covariance matrix adaption
-        r1_upd = self.c1 * self,_xxT(self.pc)
-        elite_cov = np.sum(np.array([self.weights_pos[i] * self._xxT(elites[:, i] - xmean_old) \
+        # C = (1 - c1 * (1 - hsigma) * cc * (2 - cc) - c1 - cmu * sum(weights))
+        #       + c1 * pc.pc^T + cmu * sum(wi * yi.yi^T)
+        r1_upd = self.c1 * self._xxT(self.pc)
+        elite_cov = np.sum(np.array([self.weights_pos[i] * self._xxT(Y[:,:self.mu][:,i]) \
             for i in range(len(self.weights_pos))]), axis=0)
-        non_elite_cov = np.sum(np.array([self.weights_neg[i] * self.n / (np.linalg.norm( \
-            self.C_invsqrt.dot(non_elites[:, i] - xmean_old))**2) * self._xxT(non_elites[:, i] - xmean_old) \
-            for i in range(len(self.weights_neg))]), axis=0)
+        non_elite_cov = np.sum(np.array([self.weights_neg[i] * self.n / ((np.sum((self.C_invsqrt.dot(Y[:,self.mu:][:,i]))**2))**0.5) \
+            * self._xxT(Y[:,self.mu:][:,i]) for i in range(len(self.weights_neg))]), axis=0)
         rmu_upd = elite_cov + non_elite_cov
         delta_hsigma = (1 - hsigma) * self.cc * (2 - self.cc)
         self.C = (1 - self.c1 * delta_hsigma - self.c1 - self.cmu * np.sum(self.weights)) * self.C \
             + r1_upd + rmu_upd
 
+        # Step-size adaption
+        self.sigma *= np.exp(min(1, self.csigma / (self.dsigma * 2) * (psigma_len**2 / self.n - 1)))
+
 
     def stop(self):
-        pass
+        term_result = {}
+        if self.count_eval >= self.max_fevals:
+            term_result['max_fevals'] = self.max_fevals
+        if self.condition_number >= 1e14:
+            term_result['condition_cov'] = self.condition_number
+        if self.sigma * max(self.C_eigenvals)**0.5 < 1e-11:
+            # remark: max(D) >= max(diag(C))**0.5
+            term_result['tol_x'] = 1e-11
+        if len(self.fitness_list) > 1 and \
+            self.fitness_list[-1] - self.fitness_list[0] < 1e-12:
+            term_result['tol_fun'] = 1e-12
+        return term_result
 
 
     def result(self):
-        pass
+        best_idx = np.argmin(self.fitness_list)
+        return self.X[best_idx], self.fitness_list[best_idx], self.count_eval / self.lambda_
 
 
     def optimize(self):
@@ -167,12 +183,11 @@ class CMAES(EvolutionStrategy):
 
     def _diagonalize_C(self):
         self.C = np.triu(self.C) + np.triu(self.C, 1).T
-        self.Q, eigenvals = LA.eig(self.C)
-        assert np.min(eigenvals) > 0, 'Covariance matrix is not PD!'
-        self.Lambda = np.diag(eigenvals)
-        self.kappa_C = np.max(eigenvals) / np.min(eigenvals)
-        self.C_invsqrt = np.copy(self.C)
-        self.C_invsqrt = LA.multi_dot(self.Q, 1 / np.sqrt(self.Lambda), self.Q.T)
+        self.C_eigenvals, self.Q  = LA.eig(self.C)
+        # assert np.min(self.C_eigenvals) > 0, f'Covariance matrix is not PD!: {min(self.C_eigenvals)}'
+        self.Lambda = np.diag(self.C_eigenvals)
+        self.condition_number = np.max(self.C_eigenvals) / np.min(self.C_eigenvals)
+        self.C_invsqrt = LA.multi_dot([self.Q, LA.inv(np.sqrt(self.Lambda)), self.Q.T])
 
 
     def _xxT(self, x: np.ndarray):

@@ -65,6 +65,7 @@ while count_eval < stop_eval:
     non_elite_indices = ordered_indices[mu:]
     elites = Y[:, elite_indices]
     non_elites = Y[:, non_elite_indices]
+    print(weights_pos.shape, elites.shape)
     elite_ws = np.sum(weights_pos * elites, axis=1)
     m += cm * sigma * elite_ws
 
@@ -90,7 +91,6 @@ while count_eval < stop_eval:
     C = (1 + c1 * delta_hsigma - c1 - cmu * (np.sum(weights_pos) + np.sum(weights_neg))) * C \
         + rank_one_upd + rank_mu_upd
     C = np.triu(C) + np.triu(C, 1).T
-    print(C)
     
 
 
