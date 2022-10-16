@@ -186,6 +186,7 @@ class CMAES(EvolutionStrategy):
         return {
             'best_sol': self.X[:, best_idx],
             'best_val': self.fitness_list[best_idx],
+            'solutions': self.X,
             'count_eval': self.count_eval,
             'count_iter': self.count_eval / self.lambda_
         }

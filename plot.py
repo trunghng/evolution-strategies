@@ -22,7 +22,7 @@ class Plot:
         plt.figure(figsize=figsize)
 
 
-    def contour(self):
+    def contour(self) -> None:
         assert self.x1 is not None, 'x1 array needed!'
         assert self.x2 is not None, 'x2 array needed!'
         assert self.f is not None, 'Test function needed!'
@@ -35,27 +35,28 @@ class Plot:
         plt.colorbar(cp)
 
 
-    def point(self, x, color):
-        plt.scatter(x[0], x[1], c=color)
+    def point(self, x: np.ndarray, color: str, alpha: float=None) -> None:
+        plt.scatter(x[0], x[1], c=color, alpha=alpha)
 
 
-    def save(self, img_name):
+    def save(self, img_name: str) -> None:
         img_path = self.img_basename + '-' + img_name + '.png'
         plt.savefig(img_path)
         self.img_paths.append(img_path)
 
-    def gif(self):
+    def gif(self, img_name: str) -> None:
         images = []
         for path in self.img_paths:
             images.append(imageio.imread(path))
             os.remove(path)
-        imageio.mimsave(self.img_basename + '.gif', images, duration=0.5)
+        imageio.mimsave(self.img_basename + '-' + img_name +'.gif', images, duration=0.5)
 
 
-    def close(self):
+    def clf(self) -> None:
+        plt.clf()
+
+
+    def close(self) -> None:
         plt.close()
-
-
-
 
 

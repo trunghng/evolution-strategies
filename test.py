@@ -18,23 +18,27 @@ if __name__ == '__main__':
     plot = Plot(figsize, img_basename, x1, x2, f)
     es_ = es.CMAES(xstart, sigma, ftarget=ftarget)
 
-    plot.contour()
-    plot.point(xstart, 'black')
-    plot.save('search-space')
-
     while True:
         X = es_.ask()
         fitness_list = np.array([f(X[:, i]) for i in range(X.shape[1])])
         es_.tell(X, fitness_list)
         result = es_.result()
         current_iter = result['count_iter']
-        if current_iter % 2 == 0:
+        if current_iter % 5 == 0:    
+            plot.contour()
+            plot.point(xstart, 'black')
             plot.point(result['best_sol'], 'red')
+            plot.point(result['solutions'], 'blue', alpha=0.5)
             plot.save(f'iter{current_iter}')
+            plot.clf()
 
         if es_.stop():
             print('Terminated due to:', es_.stop())
             print(es_.result())
-            plot.gif()
+            plot.contour()
+            plot.point(xstart, 'black')
+            plot.point(result['best_sol'], 'red')
+            plot.point(result['solutions'], 'blue', alpha=0.5)
+            plot.gif('end')
             plot.close()
             break
