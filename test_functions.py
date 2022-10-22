@@ -7,6 +7,16 @@ def rastrigin(x: np.ndarray) -> float:
     '''
     return 10 * len(x) + np.sum(x ** 2 - 10 * np.cos(2 * np.pi * x))
 
+# def rastrigin(x):
+#     x = np.asarray(x)
+#     """Rastrigin test objective function"""
+#     if not np.isscalar(x[0]):
+#         N = len(x[0])
+#         return [10 * N + sum(xi**2 - 10 * np.cos(2 * np.pi * xi)) for xi in x]
+#         # return 10*N + sum(x**2 - 10*np.cos(2*np.pi*x), axis=1)
+#     N = len(x)
+#     return 10 * N + sum(x**2 - 10 * np.cos(2 * np.pi * x))
+
 
 def rosenbrock(x: np.ndarray) -> float:
     '''

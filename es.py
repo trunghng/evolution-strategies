@@ -2,6 +2,24 @@ from abc import ABC, abstractmethod
 from typing import List
 import numpy as np
 import numpy.linalg as LA
+import math
+
+def dot(A, b, transpose=False):
+    """ usual dot product of "matrix" A with "vector" b.
+
+    ``A[i]`` is the i-th row of A. With ``transpose=True``, A transposed
+    is used.
+    """
+    if not transpose:
+        return [sum(A[i][j] * b[j] for j in range(len(b)))
+                for i in range(len(A))]
+    else:
+        return [sum(A[j][i] * b[j] for j in range(len(b)))
+                for i in range(len(A[0]))]
+
+def plus(a, b):
+    """add vectors, return a + b """
+    return [a[i] + b[i] for i in range(len(a))]
 
 
 class EvolutionStrategy(ABC):
@@ -72,8 +90,8 @@ class CMAES(EvolutionStrategy):
         self.ftarget = ftarget
 
         ## Set recombination weights
-        _weights = np.array([np.log((self.lambda_ + 1) / 2) - np.log(i + 1) 
-                if i < self.mu else 0 for i in range(self.lambda_)])
+        _weights = np.array([np.log(self.lambda_ / 2 + 0.5) - np.log(i + 1) 
+                if i < self.mu else 0 for i in range(self.lambda_)], dtype=np.float64)
         self.weights = _weights / np.sum(_weights[:self.mu])
         self.weights_pos = self.weights[:self.mu]
         self.weights_neg = self.weights[self.mu:]
@@ -86,9 +104,9 @@ class CMAES(EvolutionStrategy):
         self.cmu = min(1 - self.c1, alpha_cov * (self.mueff - 2 
                 + 1 / self.mueff) / ((n + 2)**2 + alpha_cov * self.mueff / 2))
         self.csigma = (self.mueff + 2) / (n + self.mueff + 5)
-        self.dsigma = 1 + 2 * max(0, np.sqrt((self.mueff - 1) 
-                / (n + 1)) - 1) + self.csigma
-        # self.dsigma = 2 * self.mueff / self.lambda_ + 0.3 + self.csigma
+        # self.dsigma = 1 + 2 * max(0, np.sqrt((self.mueff - 1) 
+        #         / (n + 1)) - 1) + self.csigma
+        self.dsigma = 2 * self.mueff / self.lambda_ + 0.3 + self.csigma
         
 
         # Initialization
@@ -110,10 +128,18 @@ class CMAES(EvolutionStrategy):
         X = m + sigma * Y ~ m + sigma * N(0, C)
         '''
         self._diagonalize_C()
-        Z = np.random.randn(self.n, self.lambda_)
-        Y = LA.multi_dot([self.Q, self.Lambda**0.5, Z])
-        X = self.xmean.reshape(self.n, 1) + self.sigma * Y
-        return X
+        # Z = np.random.randn(self.n, self.lambda_)
+        # Y = LA.multi_dot([self.Q, self.Lambda**0.5, Z])
+        # X = self.xmean.reshape(self.n, 1) + self.sigma * Y
+
+        candidate_solutions = []
+        for _k in range(self.lambda_):  # repeat lam times
+            z = [self.sigma * eigenval**0.5 * np.random.randn()
+                 for eigenval in self.C_eigenvals]
+            y = dot(self.Q.tolist(), z)
+            candidate_solutions.append(plus(self.xmean.tolist(), y))
+
+        return np.array(candidate_solutions).T
 
 
     def tell(self, X: np.ndarray, fitness_list: np.ndarray):
@@ -137,11 +163,10 @@ class CMAES(EvolutionStrategy):
 
         ## Update pc
         g = self.count_eval / self.lambda_
-        # psigma_len = LA.norm(self.psigma)
         hsigma = (np.sum(self.psigma**2) / (self.n * (1 - (1 - self.csigma)**(2 * g)))) \
             < 2 + 4. / (self.n + 1)
         ### pc normalized constant
-        pc_nc = np.sqrt(self.cc * (2 - self.cc) * self.mueff) / self.psigma
+        pc_nc = np.sqrt(self.cc * (2 - self.cc) * self.mueff) / self.sigma
         self.pc = (1 - self.cc) * self.pc + hsigma * pc_nc * step
 
         # Covariance matrix adaption
@@ -154,6 +179,7 @@ class CMAES(EvolutionStrategy):
         non_elite_cov = np.sum(np.array([self.weights_neg[i] * self.n / ((np.sum((self.C_invsqrt.dot(Y[:,self.mu:][:,i]))**2))**0.5) \
             * self._xxT(Y[:,self.mu:][:,i]) for i in range(len(self.weights_neg))]), axis=0)
         rmu_upd = self.cmu * (elite_cov + non_elite_cov)
+
         
         delta_hsigma = (1 - hsigma) * self.cc * (2 - self.cc)
         self.C = (1 - self.c1 * delta_hsigma - self.c1 - self.cmu * np.sum(self.weights)) * self.C \
@@ -169,9 +195,8 @@ class CMAES(EvolutionStrategy):
             term_result['max_fevals'] = self.max_fevals
         if self.condition_number > 1e14:
             term_result['condition_cov'] = self.condition_number
-        if self.sigma * max(self.C_eigenvals)**0.5 < 1e-11:
-            # remark: max(D) >= max(diag(C))**0.5
-            term_result['tol_x'] = 1e-11
+        if self.sigma * max(self.C_eigenvals)**0.5 < 1e-15:
+            term_result['tol_x'] = 1e-15
         if len(self.fitness_list) > 1 and \
             self.fitness_list[-1] - self.fitness_list[0] < 1e-12:
             term_result['tol_fun'] = 1e-12
@@ -183,6 +208,15 @@ class CMAES(EvolutionStrategy):
 
     def result(self):
         best_idx = np.argmin(self.fitness_list)
+        
+        try:
+            if self.fitness_list[best_idx] < self.best_val:
+                self.best_sol = self.X[:, best_idx]
+                self.best_val = self.fitness_list[best_idx]
+        except AttributeError:
+            self.best_sol = self.X[:, best_idx]
+            self.best_val = self.fitness_list[best_idx]
+
         return {
             'best_sol': self.X[:, best_idx],
             'best_val': self.fitness_list[best_idx],
@@ -197,14 +231,23 @@ class CMAES(EvolutionStrategy):
 
 
     def _diagonalize_C(self):
-        self.C = np.triu(self.C) + np.triu(self.C, 1).T
         self.C_eigenvals, self.Q  = LA.eig(self.C)
-        assert np.min(self.C_eigenvals) > 0, f'Covariance matrix is not PD!: {min(self.C_eigenvals)}'
         self.Lambda = np.diag(self.C_eigenvals)
-        self.condition_number = np.max(self.C_eigenvals) / np.min(self.C_eigenvals)
+        assert np.min(self.C_eigenvals) > 0, f'Covariance matrix is not PD!: {min(self.C_eigenvals)}'
+        self.condition_number = np.max(self.C_eigenvals) / np.min(self.C_eigenvals) \
+            if np.min(self.C_eigenvals) > 0 else 0
         self.C_invsqrt = LA.multi_dot([self.Q, LA.inv(np.sqrt(self.Lambda)), self.Q.T])
 
 
     def _xxT(self, x: np.ndarray):
         return x.reshape(x.shape[0], 1).dot(x.reshape(1, x.shape[0]))
+
+
+class xNES(EvolutionStrategy):
+
+
+    def __init__(self) -> None:
+        pass
+
+
 
