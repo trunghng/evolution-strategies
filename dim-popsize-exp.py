@@ -2,18 +2,16 @@ import es
 from test_functions import rastrigin
 import numpy as np
 import matplotlib.pyplot as plt
-from plot import Plot
 from tqdm import trange
 
 
 if __name__ == '__main__':
-    np.random.seed(2)
+    np.random.seed(13)
     n_runs = 100
     ns = [2, 5, 10]
     popsizes = [5, 7, 10, 14, 20, 32, 50, int(50 * np.sqrt(2)), 100]
     colors = ['blue', 'red', 'green']
     markers = ['o', 'x', 'v']
-
     record = np.zeros((len(ns), len(popsizes)))
 
     for ni, n in enumerate(ns):

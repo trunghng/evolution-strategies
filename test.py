@@ -9,10 +9,11 @@ from tqdm import trange
 if __name__ == '__main__':
     n_runs = 100
     # n_runs = 1
-    np.random.seed(2)
-    ns = [2, 5, 10, 20]
-    # ns = [3]
-    popsizes = [5, 7, 10, 14, 20, 32, 50, int(50 * np.sqrt(2)), 100, int(100 * np.sqrt(2)), 200]
+    np.random.seed(13)
+    # ns = [2, 5, 10, 20]
+    ns = [10]
+    popsizes = [5]
+    # popsizes = [5, 7, 10, 14, 20, 32, 50, int(50 * np.sqrt(2)), 100, int(100 * np.sqrt(2)), 200]
 
     np.set_printoptions(precision=16)
     record = dict()

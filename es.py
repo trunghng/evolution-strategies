@@ -4,23 +4,6 @@ import numpy as np
 import numpy.linalg as LA
 import math
 
-def dot(A, b, transpose=False):
-    """ usual dot product of "matrix" A with "vector" b.
-
-    ``A[i]`` is the i-th row of A. With ``transpose=True``, A transposed
-    is used.
-    """
-    if not transpose:
-        return [sum(A[i][j] * b[j] for j in range(len(b)))
-                for i in range(len(A))]
-    else:
-        return [sum(A[j][i] * b[j] for j in range(len(b)))
-                for i in range(len(A[0]))]
-
-def plus(a, b):
-    """add vectors, return a + b """
-    return [a[i] + b[i] for i in range(len(a))]
-
 
 class EvolutionStrategy(ABC):
     '''
@@ -76,7 +59,7 @@ class CMAES(EvolutionStrategy):
         sigma: initial step-size
         popsize: population size
         mu: number of parents/selected points
-        max_evals: maximum number of evaluations
+        max_fevals: maximum number of evaluations
         ftarget: target of fitness value
         '''
         # Set trategy parameters
@@ -90,7 +73,7 @@ class CMAES(EvolutionStrategy):
         self.ftarget = ftarget
 
         ## Set recombination weights
-        _weights = np.array([np.log(self.lambda_ / 2 + 0.5) - np.log(i + 1) 
+        _weights = np.array([np.log((self.lambda_ + 1) / 2) - np.log(i + 1) 
                 if i < self.mu else 0 for i in range(self.lambda_)], dtype=np.float64)
         self.weights = _weights / np.sum(_weights[:self.mu])
         self.weights_pos = self.weights[:self.mu]
@@ -107,7 +90,6 @@ class CMAES(EvolutionStrategy):
         # self.dsigma = 1 + 2 * max(0, np.sqrt((self.mueff - 1) 
         #         / (n + 1)) - 1) + self.csigma
         self.dsigma = 2 * self.mueff / self.lambda_ + 0.3 + self.csigma
-        
 
         # Initialization
         self.psigma = np.zeros(n)
@@ -128,18 +110,10 @@ class CMAES(EvolutionStrategy):
         X = m + sigma * Y ~ m + sigma * N(0, C)
         '''
         self._diagonalize_C()
-        # Z = np.random.randn(self.n, self.lambda_)
-        # Y = LA.multi_dot([self.Q, self.Lambda**0.5, Z])
-        # X = self.xmean.reshape(self.n, 1) + self.sigma * Y
-
-        candidate_solutions = []
-        for _k in range(self.lambda_):  # repeat lam times
-            z = [self.sigma * eigenval**0.5 * np.random.randn()
-                 for eigenval in self.C_eigenvals]
-            y = dot(self.Q.tolist(), z)
-            candidate_solutions.append(plus(self.xmean.tolist(), y))
-
-        return np.array(candidate_solutions).T
+        Z = np.random.randn(self.n, self.lambda_)
+        Y = LA.multi_dot([self.Q, self.Lambda**0.5, Z])
+        X = self.xmean.reshape(self.n, 1) + self.sigma * Y
+        return X
 
 
     def tell(self, X: np.ndarray, fitness_list: np.ndarray):
@@ -231,7 +205,7 @@ class CMAES(EvolutionStrategy):
 
 
     def _diagonalize_C(self):
-        self.C_eigenvals, self.Q  = LA.eig(self.C)
+        self.C_eigenvals, self.Q  = LA.eigh(self.C)
         self.Lambda = np.diag(self.C_eigenvals)
         assert np.min(self.C_eigenvals) > 0, f'Covariance matrix is not PD!: {min(self.C_eigenvals)}'
         self.condition_number = np.max(self.C_eigenvals) / np.min(self.C_eigenvals) \
