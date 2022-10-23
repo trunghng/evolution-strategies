@@ -9,7 +9,8 @@ if __name__ == '__main__':
     np.random.seed(13)
     n_runs = 100
     ns = [2, 5, 10]
-    popsizes = [5, 7, 10, 14, 20, 32, 50, int(50 * np.sqrt(2)), 100]
+    popsizes = [5, 7, 10, 14, 20, 32, 50, \
+        int(50 * np.sqrt(2)), 100, int(100 * np.sqrt(2)), 200]
     colors = ['blue', 'red', 'green']
     markers = ['o', 'x', 'v']
     record = np.zeros((len(ns), len(popsizes)))
@@ -45,7 +46,7 @@ for i, n in enumerate(ns):
     plt.plot(popsizes, record[i, :], linestyle='dashed', color=colors[i], label=f'n={n}')
 plt.xlabel('population size')
 plt.ylabel('success probability')
-plt.xticks([0, 10, 50, 100])
+plt.xticks([5, 10, 50, 100, 200])
 plt.yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
 plt.legend(loc='upper left')
 plt.savefig('./images/dim-popsize-exp.png')
