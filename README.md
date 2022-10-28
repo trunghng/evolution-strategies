@@ -8,8 +8,9 @@
 	[3] Nikolaus Hansen, Stefan Kern. [Evaluating the CMA Evolution Strategy on Multimodal Test Functions](https://doi.org/10.1007/978-3-540-30217-9_29). Parallel Problem Solving from Nature - PPSN VIII. PPSN 2004. 
 2. [ ] NES
 	- References:  
-	[1] Daan Wierstra, et al. [Natural Evolution Strategies](https://people.idsia.ch/~juergen/nes2008.pdf). IEEE World Congress on Computational Intelligence, 2008.  
-	[2] Daan Wierstra, et al. [Natural Evolution Strategies](https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf). Journal of Machine Learning Research 15 (2014).
+	[1] Daan Wierstra, Tom Schaul, Jan Peters, Jürgen Schmidhuber. [Natural Evolution Strategies](https://people.idsia.ch/~juergen/nes2008.pdf). IEEE World Congress on Computational Intelligence, 2008.  
+	[2] Daan Wierstra, Tom Schaul, Tobias Glasmachers, Yi Sun, Jürgen Schmidhuber. [Natural Evolution Strategies](https://arxiv.org/abs/1106.4487). arXiv:1106.4487, 2011.  
+	[3] Daan Wierstra, Tom Schaul, Tobias Glasmachers, Yi Sun, Jan Peters, Jürgen Schmidhuber. [Natural Evolution Strategies](https://www.jmlr.org/papers/volume15/wierstra14a/wierstra14a.pdf). Journal of Machine Learning Research 15 (2014).
 3. [ ] OpenAI's ES
 	- References:  
 	[1] Tim Salimans, Jonathan Ho, Xi Chen, Szymon Sidor, Ilya Sutskever. [Evolution Strategies as a Scalable Alternative to Reinforcement Learning](https://arxiv.org/abs/1703.03864). arXiv:1703.03864 (2017).
