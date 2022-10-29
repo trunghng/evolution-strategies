@@ -239,7 +239,7 @@ class xNES(EvolutionStrategy):
     Exponential Natural Evolution Strategy
     '''
 
-    DEFAULT_ETA = lambda n: (9 + 3 + np.log(n)) / (5 * n * np.sqrt(n))
+    DEFAULT_ETA = lambda n: (9 + 3 * np.log(n)) / (5 * n * np.sqrt(n))
     DEFAULT_POPSIZE = lambda n: 4 + int(3 * np.log(n))
     DEFAULT_MAXFEVALS = lambda popsize, n: 100 * popsize + 150 * (n + 3)**2 * popsize**0.5
 
@@ -278,6 +278,7 @@ class xNES(EvolutionStrategy):
         self.sigma = np.power(LA.det(A), 1.0 / self.n)
         self.B = A / self.sigma
         self.count_eval = 0
+        self.U = self.utilities()
 
 
     def ask(self) -> np.ndarray:
@@ -308,14 +309,13 @@ class xNES(EvolutionStrategy):
         self.fitness_list = np.sort(fitness_list)[::-1]
         Z = self.Z[:,ordered_indices]
         S = self.S[:,ordered_indices]
-        U = self.utilities()
 
         # Compute gradients
         def _xxT(x: np.ndarray):
             return x.reshape(x.shape[0], 1).dot(x.reshape(1, x.shape[0]))
 
-        grad_delta = S.dot(U)
-        grad_M = np.sum(np.array([U[k] * (_xxT(S[:,k]) - np.identity(self.n)) 
+        grad_delta = S.dot(self.U)
+        grad_M = np.sum(np.array([self.U[k] * (_xxT(S[:,k]) - np.identity(self.n)) 
             for k in range(self.lambda_)]), axis=0)
         grad_sigma = np.trace(grad_M) / self.n
         grad_B = grad_M - grad_sigma * np.identity(self.n)
@@ -380,3 +380,31 @@ class xNES(EvolutionStrategy):
         U = some_list / np.sum(some_list) - 1.0 / self.lambda_
         return U
 
+
+class OpenES(EvolutionStrategy):
+    '''
+    OpenAI Evolution Strategy
+    '''
+
+    def __init__(self) -> None:
+        pass
+
+
+    def ask(self):
+        pass
+
+
+    def tell(self):
+        pass
+
+
+    def stop(self):
+        pass
+
+
+    def result(self):
+        pass
+
+
+    def optimize(self):
+        pass
