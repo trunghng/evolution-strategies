@@ -19,20 +19,22 @@ if __name__ == '__main__':
         for pi, popsize in enumerate(popsizes):
             fstop_count = 0
             for _ in trange(n_runs):
-                xstart = np.random.uniform(1, 5, n)
-                sigma = 2
+                # xstart = np.random.uniform(1, 5, n)
+                # sigma = 2
+                mu = np.random.uniform(1, 5, n)
+                A = np.identity(n)
                 ftarget = 1e-10
                 f = rastrigin
-                es_ = es.CMAES(xstart, sigma, ftarget=ftarget, popsize=popsize)
+                es_ = es.xNES(mu, A, ftarget=ftarget, popsize=popsize)
 
                 while True:
                     X = es_.ask()
-                    fitness_list = np.array([f(X[:, i]) for i in range(X.shape[1])])
-                    es_.tell(X, fitness_list)
+                    fitness_list = np.array([-f(X[:, i]) for i in range(X.shape[1])])
+                    es_.tell(fitness_list)
                     result = es_.result()
 
                     if es_.stop():
-                        if result['best_val'] <= ftarget:
+                        if -result['best_val'] <= ftarget:
                             fstop_count += 1
                         break
 
@@ -49,5 +51,5 @@ plt.ylabel('success probability')
 plt.xticks([5, 10, 50, 100, 200])
 plt.yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
 plt.legend(loc='upper left')
-plt.savefig('./images/dim-popsize-exp.png')
+plt.savefig('./images/nes-dim-popsize-exp.png')
 plt.close()
