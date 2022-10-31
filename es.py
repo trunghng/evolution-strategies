@@ -305,8 +305,8 @@ class xNES(EvolutionStrategy):
         '''
         self.count_eval += self.lambda_
 
-        ordered_indices = np.argsort(-fitness_list)
-        self.fitness_list = np.sort(fitness_list)[::-1]
+        ordered_indices = np.argsort(fitness_list)
+        self.fitness_list = np.sort(fitness_list)
         Z = self.Z[:,ordered_indices]
         S = self.S[:,ordered_indices]
 
@@ -336,16 +336,16 @@ class xNES(EvolutionStrategy):
         if self.count_eval >= self.max_fevals:
             termination_result['max_fevals'] = self.max_fevals
         if self.ftarget is not None and len(self.fitness_list) > 0 \
-                and -self.fitness_list[0] <= self.ftarget:
+                and self.fitness_list[0] <= self.ftarget:
             termination_result['ftarget'] = self.ftarget
         return termination_result
 
 
     def result(self):
-        best_idx = np.argmax(self.fitness_list)
+        best_idx = np.argmin(self.fitness_list)
         
         try:
-            if -self.fitness_list[best_idx] < self.best_val:
+            if self.fitness_list[best_idx] < self.best_val:
                 self.best_sol = self.Z[:, best_idx]
                 self.best_val = self.fitness_list[best_idx]
         except AttributeError:
@@ -353,8 +353,8 @@ class xNES(EvolutionStrategy):
             self.best_val = self.fitness_list[best_idx]
 
         return {
-            'best_sol': self.Z[:, best_idx],
-            'best_val': self.fitness_list[best_idx],
+            'best_sol': self.best_sol,
+            'best_val': self.best_val,
             'solutions': self.Z,
             'count_eval': self.count_eval,
             'count_iter': self.count_eval / self.lambda_
