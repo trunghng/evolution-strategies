@@ -29,11 +29,6 @@ class EvolutionStrategy(ABC):
         pass
 
 
-    @abstractmethod
-    def optimize(self):
-        pass
-
-
 class CMAES(EvolutionStrategy):
     '''
     CMA Evolution Strategy
@@ -217,10 +212,6 @@ class CMAES(EvolutionStrategy):
         }
 
 
-    def optimize(self):
-        pass
-
-
     def _diagonalize_C(self):
         '''
         Covariance matrix eigendecomposition
@@ -361,10 +352,6 @@ class xNES(EvolutionStrategy):
         }
 
 
-    def optimize(self):
-        pass
-
-
     def utilities(self) -> np.ndarray:
         '''
         Compute utilities
@@ -403,8 +390,4 @@ class OpenES(EvolutionStrategy):
 
 
     def result(self):
-        pass
-
-
-    def optimize(self):
         pass
